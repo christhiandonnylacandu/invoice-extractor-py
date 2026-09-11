@@ -1,0 +1,17 @@
+{
+  "processed_at": "2026-09-11T14:43:59.681928+00:00",
+  "sumber": "Python CLI",
+  "vendor": "CV. PRATAMA",
+  "invoice_no": null,
+  "invoice_date": "2020-12-10",
+  "due_date": null,
+  "currency": "IDR",
+  "subtotal": 55440000.0,
+  "tax": null,
+  "total": 55440000.0,
+  "groq_total": 55440000.0,
+  "gemini_total": 55440000.0,
+  "confidence": 0.95,
+  "status": "auto",
+  "reason": "No invoice beda atau kosong"
+}

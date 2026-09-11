@@ -5,25 +5,30 @@ A command-line port of my [n8n Invoice Extractor workflow](https://github.com/ch
 Give it a photo of an invoice; it returns validated structured data as JSON.
 
 ```
-python invoice_extractor.py samples/invoice.jpg
+python invoice_extractor.py samples/invoice-sample.jpg
 ```
+
+Real output, run against [`samples/invoice-sample.jpg`](samples/invoice-sample.jpg):
 
 ```json
 {
-  "vendor": "PT Contoh Sejahtera",
-  "invoice_no": "INV-2026-0142",
-  "invoice_date": "2026-08-01",
+  "vendor": "CV. PRATAMA",
+  "invoice_no": null,
+  "invoice_date": "2020-12-10",
+  "due_date": null,
   "currency": "IDR",
-  "subtotal": 4500000.0,
-  "tax": 495000.0,
-  "total": 4995000.0,
-  "groq_total": 4995000.0,
-  "gemini_total": 4995000.0,
-  "confidence": 0.93,
+  "subtotal": 55440000.0,
+  "tax": null,
+  "total": 55440000.0,
+  "groq_total": 55440000.0,
+  "gemini_total": 55440000.0,
+  "confidence": 0.95,
   "status": "auto",
-  "reason": "OK"
+  "reason": "No invoice beda atau kosong"
 }
 ```
+
+Both models agreed on the total (Rp 55.440.000) independently, so it was auto-approved despite neither model finding an invoice number on this particular sample.
 
 ## Pipeline
 
@@ -74,7 +79,7 @@ Keys are read from the environment only — nothing is committed (`.env` is git-
 
 ## Status
 
-Core pipeline (encode → extract → cross-check → validate → save) is implemented. Telegram intake and Google Sheets output are intentionally out of scope here — that plumbing lives in the [n8n version](https://github.com/christhiandonnylacandu/invoice-extractor-n8n). Run it against your own invoices with your own keys.
+Working end to end — see the real run above. Telegram intake and Google Sheets output are intentionally out of scope here — that plumbing lives in the [n8n version](https://github.com/christhiandonnylacandu/invoice-extractor-n8n).
 
 ## Stack
 
