@@ -26,7 +26,7 @@ if not GROQ_API_KEY or not OPENROUTER_API_KEY:
     print("Salin .env.example ke .env, lalu isi kedua key sebelum jalankan lagi.")
     sys.exit(1)
 
-GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+GROQ_MODEL = "qwen/qwen3.6-27b"
 OPENROUTER_MODEL = "google/gemini-2.5-flash"
 
 EXTRACT_PROMPT = (

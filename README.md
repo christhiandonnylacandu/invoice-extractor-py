@@ -30,7 +30,7 @@ python invoice_extractor.py samples/invoice.jpg
 | Step | What happens | Maps to n8n node |
 |---|---|---|
 | 1. Encode | Local image → base64 `data:` URL | `Siapkan Gambar` |
-| 2. Extract | **Groq / Llama 4 Scout** reads the invoice → full JSON | `Baca Groq` + `Parse Groq` |
+| 2. Extract | **Groq / Qwen3.6 27B** reads the invoice → full JSON | `Baca Groq` + `Parse Groq` |
 | 3. Cross-check | **Gemini 2.5 Flash via OpenRouter** independently reads total / invoice no / currency | `Cek Silang (Gemini 2.5 Flash)` |
 | 4. Validate | Normalise numbers, compare the two models, math-check, confidence gate → `auto` or `review` | `Bandingkan dan Validasi` |
 | 5. Save | Write result JSON to `output/` | (Sheets/Telegram left to the n8n version) |
@@ -69,6 +69,8 @@ Keys are read from the environment only — nothing is committed (`.env` is git-
 ## Troubleshooting
 
 **`SSLCertVerificationError: unable to get local issuer certificate`** — some antivirus / corporate network setups (e.g. Norton) intercept HTTPS traffic with their own root certificate. Windows trusts it, but Python's bundled certificate store doesn't. Fix: `pip install pip-system-certs` (already in `requirements.txt`) — it makes Python use the OS certificate store instead.
+
+**`404 model_not_found`** — Groq's model lineup changes over time; vision-capable models in particular have been swapped more than once (Llama 4 Scout/Maverick were retired in favour of Qwen3.6/3.8 27B). If this happens again, check [console.groq.com/docs/vision](https://console.groq.com/docs/vision) for the current supported model IDs and update `GROQ_MODEL` at the top of the script.
 
 ## Status
 
