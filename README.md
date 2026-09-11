@@ -66,6 +66,10 @@ OPENROUTER_API_KEY=... # openrouter.ai     (free tier)
 
 Keys are read from the environment only — nothing is committed (`.env` is git-ignored).
 
+## Troubleshooting
+
+**`SSLCertVerificationError: unable to get local issuer certificate`** — some antivirus / corporate network setups (e.g. Norton) intercept HTTPS traffic with their own root certificate. Windows trusts it, but Python's bundled certificate store doesn't. Fix: `pip install pip-system-certs` (already in `requirements.txt`) — it makes Python use the OS certificate store instead.
+
 ## Status
 
 Core pipeline (encode → extract → cross-check → validate → save) is implemented. Telegram intake and Google Sheets output are intentionally out of scope here — that plumbing lives in the [n8n version](https://github.com/christhiandonnylacandu/invoice-extractor-n8n). Run it against your own invoices with your own keys.
