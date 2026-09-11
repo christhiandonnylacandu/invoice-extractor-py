@@ -1,7 +1,7 @@
 """
-Port dari workflow n8n "Invoice Extractor (Groq + Cerebras + HITL)".
+Port dari workflow n8n "Invoice Extractor (Dual-LLM cross-check + HITL)".
 Alur sama, sumber gambar & penyimpanan disederhanakan buat versi CLI:
-  foto lokal -> Groq (extract) -> Claude (cross-check) -> validasi -> JSON lokal.
+  foto lokal -> Groq (extract) -> OpenRouter/Gemini (cross-check) -> validasi -> JSON lokal.
 """
 
 import base64
@@ -14,21 +14,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
-from anthropic import Anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
-if not GROQ_API_KEY or not ANTHROPIC_API_KEY:
-    print("GROQ_API_KEY dan/atau ANTHROPIC_API_KEY belum diisi.")
+if not GROQ_API_KEY or not OPENROUTER_API_KEY:
+    print("GROQ_API_KEY dan/atau OPENROUTER_API_KEY belum diisi.")
     print("Salin .env.example ke .env, lalu isi kedua key sebelum jalankan lagi.")
     sys.exit(1)
 
 GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+OPENROUTER_MODEL = "google/gemini-2.5-flash"
 
 EXTRACT_PROMPT = (
     "Anda adalah extractor data invoice. Baca gambar invoice dan kembalikan HANYA JSON "
@@ -79,33 +78,33 @@ def extract_with_groq(data_url: str) -> dict:
         return {}
 
 
-def crosscheck_with_claude(data_url: str) -> dict:
-    """Setara node 'Cek Silang Cerebras' (di sini diganti Claude)."""
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    header, b64data = data_url.split(";base64,")
-    mime = header.replace("data:", "")
-    message = client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=500,
-        temperature=0,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": CROSSCHECK_PROMPT},
-                    {
-                        "type": "image",
-                        "source": {"type": "base64", "media_type": mime, "data": b64data},
-                    },
-                ],
-            }
-        ],
+def crosscheck_with_openrouter(data_url: str) -> dict:
+    """Setara node 'Cek Silang (Gemini 2.5 Flash)' — independent second read via OpenRouter."""
+    resp = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+        json={
+            "model": OPENROUTER_MODEL,
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": CROSSCHECK_PROMPT},
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                    ],
+                }
+            ],
+        },
+        timeout=120,
     )
-    text = message.content[0].text
+    resp.raise_for_status()
+    content = resp.json()["choices"][0]["message"]["content"]
     try:
-        return json.loads(text)
+        return json.loads(content)
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
+        match = re.search(r"\{.*\}", content, re.DOTALL)
         return json.loads(match.group(0)) if match else {}
 
 
@@ -137,18 +136,18 @@ def normalize_number(value):
         return None
 
 
-def validate(groq_data: dict, claude_data: dict) -> dict:
+def validate(groq_data: dict, openrouter_data: dict) -> dict:
     """Setara node 'Bandingkan dan Validasi'."""
     g_total = normalize_number(groq_data.get("total"))
-    c_total = normalize_number(claude_data.get("total"))
+    o_total = normalize_number(openrouter_data.get("total"))
     sub = normalize_number(groq_data.get("subtotal"))
     tax = normalize_number(groq_data.get("tax"))
     g_no = str(groq_data.get("invoice_no") or "").strip()
-    c_no = str(claude_data.get("invoice_no") or "").strip()
+    o_no = str(openrouter_data.get("invoice_no") or "").strip()
     conf = float(groq_data.get("confidence") or 0)
 
-    totals_agree = g_total is not None and c_total is not None and abs(g_total - c_total) < 0.01
-    no_agree = g_no != "" and c_no != "" and g_no == c_no
+    totals_agree = g_total is not None and o_total is not None and abs(g_total - o_total) < 0.01
+    no_agree = g_no != "" and o_no != "" and g_no == o_no
     math_ok = True
     if sub is not None and tax is not None and g_total is not None:
         math_ok = abs((sub + tax) - g_total) <= max(1, g_total * 0.02)
@@ -156,7 +155,7 @@ def validate(groq_data: dict, claude_data: dict) -> dict:
 
     reasons = []
     if not totals_agree:
-        reasons.append("Total beda Groq vs Claude")
+        reasons.append("Total beda Groq vs Gemini")
     if not no_agree:
         reasons.append("No invoice beda atau kosong")
     if not math_ok:
@@ -172,15 +171,15 @@ def validate(groq_data: dict, claude_data: dict) -> dict:
         "processed_at": datetime.now(timezone.utc).isoformat(),
         "sumber": "Python CLI",
         "vendor": groq_data.get("vendor"),
-        "invoice_no": groq_data.get("invoice_no") or claude_data.get("invoice_no"),
+        "invoice_no": groq_data.get("invoice_no") or openrouter_data.get("invoice_no"),
         "invoice_date": groq_data.get("invoice_date"),
         "due_date": groq_data.get("due_date"),
-        "currency": groq_data.get("currency") or claude_data.get("currency"),
+        "currency": groq_data.get("currency") or openrouter_data.get("currency"),
         "subtotal": sub,
         "tax": tax,
         "total": g_total,
         "groq_total": g_total,
-        "claude_total": c_total,
+        "gemini_total": o_total,
         "confidence": conf,
         "status": status,
         "reason": "; ".join(reasons) if reasons else "OK",
@@ -202,10 +201,10 @@ def main():
     print("-> Membaca invoice via Groq...")
     groq_data = extract_with_groq(data_url)
 
-    print("-> Cross-check via Claude...")
-    claude_data = crosscheck_with_claude(data_url)
+    print("-> Cross-check via OpenRouter (Gemini 2.5 Flash)...")
+    openrouter_data = crosscheck_with_openrouter(data_url)
 
-    result = validate(groq_data, claude_data)
+    result = validate(groq_data, openrouter_data)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
     output_dir = Path("output")

@@ -18,7 +18,7 @@ python invoice_extractor.py samples/invoice.jpg
   "tax": 495000.0,
   "total": 4995000.0,
   "groq_total": 4995000.0,
-  "claude_total": 4995000.0,
+  "gemini_total": 4995000.0,
   "confidence": 0.93,
   "status": "auto",
   "reason": "OK"
@@ -31,7 +31,7 @@ python invoice_extractor.py samples/invoice.jpg
 |---|---|---|
 | 1. Encode | Local image → base64 `data:` URL | `Siapkan Gambar` |
 | 2. Extract | **Groq / Llama 4 Scout** reads the invoice → full JSON | `Baca Groq` + `Parse Groq` |
-| 3. Cross-check | **Claude Haiku 4.5** independently reads total / invoice no / currency | `Cek Silang` |
+| 3. Cross-check | **Gemini 2.5 Flash via OpenRouter** independently reads total / invoice no / currency | `Cek Silang (Gemini 2.5 Flash)` |
 | 4. Validate | Normalise numbers, compare the two models, math-check, confidence gate → `auto` or `review` | `Bandingkan dan Validasi` |
 | 5. Save | Write result JSON to `output/` | (Sheets/Telegram left to the n8n version) |
 
@@ -60,8 +60,8 @@ cp .env.example .env          # then fill in the two keys
 `.env`:
 
 ```
-GROQ_API_KEY=...      # console.groq.com  (free tier)
-ANTHROPIC_API_KEY=... # console.anthropic.com
+GROQ_API_KEY=...       # console.groq.com  (free tier)
+OPENROUTER_API_KEY=... # openrouter.ai     (free tier)
 ```
 
 Keys are read from the environment only — nothing is committed (`.env` is git-ignored).
@@ -72,4 +72,4 @@ Core pipeline (encode → extract → cross-check → validate → save) is impl
 
 ## Stack
 
-Python 3.13 · `requests` · `anthropic` · `python-dotenv` · Groq API · Anthropic API
+Python 3.13 · `requests` · `python-dotenv` · Groq API · OpenRouter API

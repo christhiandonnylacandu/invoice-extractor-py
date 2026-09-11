@@ -3,3 +3,9 @@
 __pycache__/
 *.pyc
 output/
+
+# test invoice photos - may contain real personal/business data, never commit
+*.jpg
+*.jpeg
+*.png
+*.pdf
