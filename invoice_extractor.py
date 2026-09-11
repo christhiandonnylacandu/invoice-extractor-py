@@ -70,6 +70,8 @@ def extract_with_groq(data_url: str) -> dict:
         },
         timeout=120,
     )
+    if not resp.ok:
+        print(f"Groq API error {resp.status_code}: {resp.text}")
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"]
     try:
@@ -99,6 +101,8 @@ def crosscheck_with_openrouter(data_url: str) -> dict:
         },
         timeout=120,
     )
+    if not resp.ok:
+        print(f"OpenRouter API error {resp.status_code}: {resp.text}")
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"]
     try:
